@@ -1,16 +1,14 @@
 import streamlit as st
 import requests
 
-
-
-def getAllBookstore():
-    url = 'https://cloud.culture.tw/frontsite/trans/emapOpenDataAction.do?method=exportEmapJson&typeId=M' # 在這裡輸入目標 url
+def getAllBookstore() -> list:
+    url = "https://cloud.culture.tw/frontsite/trans/emapOpenDataAction.do?method=exportEmapJson&typeId=M"
     headers = {"accept": "application/json"}
     response = requests.get(url, headers=headers)
     res = response.json()
     return res
 
-def getCountyOption(items):
+def getCountyOption(items) ->list:
     optionList = []
     for item in items:
         name = item['cityName'][0:3]
@@ -18,14 +16,26 @@ def getCountyOption(items):
             optionList.append(name)
     return optionList
 
-def getSpecificBookstore(items, county):
+def getDistrictOption(items, target) ->list:
+    optionList = []
+    for item in items:
+        name = item['cityName']
+        if target not in name: continue
+        name.strip()
+        district = name[5:]
+        if len(district) == 0: continue
+        if district not in optionList:
+            optionList.append(district)
+    return optionList
+
+def getSpecificBookstore(items, county, districts):
     specificBookstoreList = []
     for item in items:
         name = item['cityName']
-    # 如果 name 不是我們選取的 county 則跳過
-    if county in name:
-        specificBookstoreList.append(item)
-    # hint: 用 if-else 判斷並用 continue 跳過
+        if county not in name: continue
+        for district in districts:
+            if district not in name: continue
+            specificBookstoreList.append(item)
     return specificBookstoreList
 
 def getBookstoreInfo(items):
@@ -35,37 +45,33 @@ def getBookstoreInfo(items):
         expander.image(item['representImage'])
         expander.metric('hitRate', item['hitRate'])
         expander.subheader('Introduction')
-        # 用 expander.write 呈現書店的 Introduction
         expander.write(item['intro'])
         expander.subheader('Address')
-        # 用 expander.write 呈現書店的 Address
-        expander.write(item['Adress'])
+        expander.write(item['address'])
         expander.subheader('Open Time')
-        # 用 expander.write 呈現書店的 Open Time
-        expander.write(item['Open Time'])
+        expander.write(item['openTime'])
         expander.subheader('Email')
-        # 用 expander.write 呈現書店的 Email
-        expander.write(item['Email'])
-
-
-        # 將該 expander 放到 expanderList 中
+        expander.write(item['email'])
         expanderList.append(expander)
     return expanderList
 
-
 def app():
     bookstoreList = getAllBookstore()
+
     countyOption = getCountyOption(bookstoreList)
+
     st.header('特色書店地圖')
-    st.metric('Total bookstore', len(bookstoreList)) 
+    st.metric('Total bookstore', len(bookstoreList))
     county = st.selectbox('請選擇縣市', countyOption)
-    
-    specificBookstore = getSpecificBookstore(bookstoreList, county)
+    districtOption = getDistrictOption(bookstoreList, county)
+    district = st.multiselect('請選擇區域', districtOption)
+
+    specificBookstore = getSpecificBookstore(bookstoreList, county, district)
     num = len(specificBookstore)
     st.write(f'總共有{num}項結果', num)
-    st.snow()
+
+    specificBookstore.sort(key = lambda item: item['hitRate'], reverse=True)
     bookstoreInfo = getBookstoreInfo(specificBookstore)
 
 if __name__ == '__main__':
     app()
-
